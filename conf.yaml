@@ -1,0 +1,83 @@
+heat_template_version: '2015-04-30'
+
+parameters:
+  key_name:
+    type: string
+    description: Name of an existing key pair
+  image_id:
+    type: string
+    description: ID of the image to use for the instance
+  flavor:
+    type: string
+    description: Flavor of the instance
+  st_network_name:
+    type: string
+    description: Id of the public network (external network)
+  floating_network_name:
+    type: string
+    description: Id of the internal network
+
+resources:
+  belyaev_instance:
+    type: OS::Nova::Server
+    properties:
+      key_name: { get_param: key_name }
+      image: { get_param: image_id }
+      flavor: { get_param: flavor }
+      networks:
+        - port: { get_resource: server1_port }
+
+  belyaev_db_instance:
+    type: OS::Nova::Server
+    properties:
+      key_name: { get_param: key_name }
+      image: { get_param: image_id }
+      flavor: { get_param: flavor }
+      networks:
+        - port: { get_resource: server2_port }
+
+  server1_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_param: st_network_name }
+      security_groups:
+        - { get_resource: db_security_group }
+
+  server2_port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: { get_param: st_network_name }
+      security_groups:
+        - { get_resource: db_security_group }
+
+  server1_ip:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network: { get_param: floating_network_name }
+      
+  server1_association:
+    type: OS::Neutron::FloatingIPAssociation
+    properties:
+      floatingip_id: { get_resource: server1_ip }
+      port_id: { get_resource: server1_port }
+
+  db_security_group:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      rules:
+        - protocol: tcp
+          remote_ip_prefix: 0.0.0.0/0
+          port_range_min: 80
+          port_range_max: 80
+        - protocol: tcp
+          remote_ip_prefix: 0.0.0.0/0
+          port_range_min: 443
+          port_range_max: 443
+        - protocol: tcp
+          remote_ip_prefix: 0.0.0.0/0
+          port_range_min: 22 
+          port_range_max: 22
+        - protocol: tcp
+          remote_ip_prefix: 0.0.0.0/0
+          port_range_min: 3306 
+          port_range_max: 3306
