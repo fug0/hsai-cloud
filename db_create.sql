@@ -1,3 +1,5 @@
+USE event_reminder;
+
 DROP TABLE IF EXISTS `event`;
 
 DROP TABLE IF EXISTS `user`;
