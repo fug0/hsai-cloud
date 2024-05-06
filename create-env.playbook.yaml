@@ -12,7 +12,7 @@
       add_host:
         name: event_reminder_server
         groups: nodes
-        ansible_host: "{{ trfrm.outputs.servers.value.tg_server}}"
+        ansible_host: "{{ trfrm.outputs.servers.value.event_reminder_server}}"
         ansible_ssh_private_key_file: ~/.ssh/id_rsa
         ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
 
@@ -20,7 +20,7 @@
       add_host:
         name: event_reminder_db_server
         groups: nodes
-        ansible_host: "{{ trfrm.outputs.servers.value.db_server}}"
+        ansible_host: "{{ trfrm.outputs.servers.value.event_reminder_db_server}}"
         ansible_ssh_private_key_file: ~/.ssh/id_rsa
         ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
 
@@ -39,7 +39,7 @@
         host: "{{ trfrm.outputs.servers.value.tg_server}}"
         port: 22
 
-- hosts: db_server
+- hosts: event_reminder_db_server
   name: Start mysql server
   become: yes
   tasks:
@@ -71,8 +71,8 @@
 
     - name: Add user
       mysql_user:
-        name: "{{ hostvars.localhost.db.secret.username }}"
-        password: "{{ hostvars.localhost.db.secret.password }}"
+        name: "user"
+        password: "asd123"
         priv: "event_reminder.*:ALL"
         host: "%"  # Разрешить подключение с любого хоста
         state: present
@@ -85,13 +85,13 @@
 
     - name: Import database dump
       mysql_db:
-        name: restarauntFinder
+        name: event_reminder
         state: import
         login_unix_socket: /var/run/mysqld/mysqld.sock
-        target: /home/ubuntu/DataBaseRestaraunt.sql
+        target: /home/ubuntu/db_create.sql
 
 
-- hosts: tg_server
+- hosts: event_reminder_server
   name: Deploy application
   become: true
 
@@ -100,9 +100,9 @@
       apt:
         update_cache: yes
 
-    - name: Install JDK 21
+    - name: Install JDK 18
       apt:
-        name: openjdk-21-jdk
+        name: openjdk-18-jdk
         state: present
 
     - name: Copy jar archive
@@ -112,24 +112,11 @@
 
     - name: Set application as service
       copy:
-        src: "{{ unit_path | regex_replace('j2$', 'service') }}"
+        src: "{{ unit_path }}"
         dest: /etc/systemd/system/
         
     - name: Deploy Java application
       systemd:
         daemon_reload: true
         state: restarted
-        name: rest_finder
-
-- name: Delete files with secrets
-  hosts: localhost
-  tasks:
-    - name: delete db files
-      ansible.builtin.file:
-        path: db.json
-        state: absent
-
-    - name: delete bot files
-      ansible.builtin.file:
-        path: bot.json
-        state: absent
+        name: event_reminder
