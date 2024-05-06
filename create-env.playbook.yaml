@@ -31,12 +31,12 @@
   tasks:
     - name: Wait for db port 22
       wait_for:
-        host: "{{ trfrm.outputs.servers.value.db_server}}"
+        host: "{{ trfrm.outputs.servers.value.event_reminder_server}}"
         port: 22
 
     - name: Wait for tg port 22
       wait_for:
-        host: "{{ trfrm.outputs.servers.value.tg_server}}"
+        host: "{{ trfrm.outputs.servers.value.event_reminder_db_server}}"
         port: 22
 
 - hosts: event_reminder_db_server
