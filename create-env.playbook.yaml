@@ -1,0 +1,135 @@
+- name: run local terraform
+  hosts: localhost
+  tasks:
+    - name: Run terraform
+      terraform:
+        project_path: "./tf"
+        force_init: yes
+        state: present
+      register: trfrm
+
+    - name: Add tg host
+      add_host:
+        name: event_reminder_server
+        groups: nodes
+        ansible_host: "{{ trfrm.outputs.servers.value.tg_server}}"
+        ansible_ssh_private_key_file: ~/.ssh/id_rsa
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+
+    - name: Add db host
+      add_host:
+        name: event_reminder_db_server
+        groups: nodes
+        ansible_host: "{{ trfrm.outputs.servers.value.db_server}}"
+        ansible_ssh_private_key_file: ~/.ssh/id_rsa
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+
+- name: Wait timeout for creating instances
+  hosts: localhost
+  connection: local
+
+  tasks:
+    - name: Wait for db port 22
+      wait_for:
+        host: "{{ trfrm.outputs.servers.value.db_server}}"
+        port: 22
+
+    - name: Wait for tg port 22
+      wait_for:
+        host: "{{ trfrm.outputs.servers.value.tg_server}}"
+        port: 22
+
+- hosts: db_server
+  name: Start mysql server
+  become: yes
+  tasks:
+    - name: Update apt package cache
+      apt:
+        update_cache: yes
+
+    - name: Install MySQL server
+      apt:
+        name: mysql-server-8.0
+        state: present
+
+    - name: Change server configuration
+      ansible.builtin.lineinfile:
+        path: /etc/mysql/mysql.conf.d/mysqld.cnf
+        regexp: "^bind-address"
+        line: "bind-address = 0.0.0.0"
+
+    - name: Start MySQL service
+      service:
+        name: mysql
+        state: restarted
+        enabled: yes
+
+    - name: Install net-tools
+      apt:
+        name: net-tools
+        state: present
+
+    - name: Add user
+      mysql_user:
+        name: "{{ hostvars.localhost.db.secret.username }}"
+        password: "{{ hostvars.localhost.db.secret.password }}"
+        priv: "event_reminder.*:ALL"
+        host: "%"  # Разрешить подключение с любого хоста
+        state: present
+        login_unix_socket: /run/mysqld/mysqld.sock
+
+    - name: Copy sql import script
+      copy:
+        src: "{{ sql_path  }}"
+        dest: /home/ubuntu
+
+    - name: Import database dump
+      mysql_db:
+        name: restarauntFinder
+        state: import
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+        target: /home/ubuntu/DataBaseRestaraunt.sql
+
+
+- hosts: tg_server
+  name: Deploy application
+  become: true
+
+  tasks:
+    - name: Update apt package cache
+      apt:
+        update_cache: yes
+
+    - name: Install JDK 21
+      apt:
+        name: openjdk-21-jdk
+        state: present
+
+    - name: Copy jar archive
+      copy:
+        src: "{{ jar_path }}"
+        dest: /home/ubuntu/
+
+    - name: Set application as service
+      copy:
+        src: "{{ unit_path | regex_replace('j2$', 'service') }}"
+        dest: /etc/systemd/system/
+        
+    - name: Deploy Java application
+      systemd:
+        daemon_reload: true
+        state: restarted
+        name: rest_finder
+
+- name: Delete files with secrets
+  hosts: localhost
+  tasks:
+    - name: delete db files
+      ansible.builtin.file:
+        path: db.json
+        state: absent
+
+    - name: delete bot files
+      ansible.builtin.file:
+        path: bot.json
+        state: absent
