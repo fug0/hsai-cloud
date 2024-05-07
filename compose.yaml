@@ -1,0 +1,14 @@
+version: "3.9"
+services:
+
+db:
+  build:
+    context: database
+    dockerfile: Dockerfile
+  image: fug0/event_reminder:db
+
+bot:
+  build:
+    context: bot
+    dockerfile: Dockerfile
+  image: fug0/event_reminder:bot
