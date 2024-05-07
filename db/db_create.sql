@@ -1,3 +1,6 @@
+DROP DATABASE IF EXISTS event_reminder;
+CREATE DATABASE event_reminder;
+
 USE event_reminder;
 
 DROP TABLE IF EXISTS `event`;
