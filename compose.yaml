@@ -1,0 +1,24 @@
+version: "3.9"
+services:
+
+  db:
+    image: {{ registry_host }}:db
+    container_name: db
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_DB: "mysql"
+      MYSQL_USER: "root"
+      MYSQL_PASSWORD: "root"
+
+  event_reminder:
+    image: {{ registry_host }}:bot
+    container_name: bot
+    ports:
+      - "8081:8081"
+    depends_on:
+      - db
+    environment:
+      SPRING_DATASOURCE_URL: r2dbc:mysql://db:3306/event_reminder
+      SPRING_DATASOURCE_USERNAME: "user"
+      SPRING_DATASOURCE_PASSWORD: "asd123"
