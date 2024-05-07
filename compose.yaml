@@ -2,7 +2,7 @@ version: "3.9"
 services:
 
   db:
-    image: {{ registry_host }}/event_reminder/db
+    image: fug0/event_reminder:db
     container_name: db
     ports:
       - "3306:3306"
@@ -12,7 +12,7 @@ services:
       MYSQL_PASSWORD: "root"
 
   event_reminder:
-    image: {{ registry_host }}/event_reminder/bot
+    image: fug0/event_reminder:bot
     container_name: bot
     ports:
       - "8081:8081"
