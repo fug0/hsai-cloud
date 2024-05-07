@@ -10,17 +10,9 @@
 
     - name: Add tg host
       add_host:
-        name: event_reminder_server
+        name: docker_server
         groups: nodes
-        ansible_host: "{{ trfrm.outputs.servers.value.event_reminder_server}}"
-        ansible_ssh_private_key_file: ~/.ssh/id_rsa
-        ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
-
-    - name: Add db host
-      add_host:
-        name: event_reminder_db_server
-        groups: nodes
-        ansible_host: "{{ trfrm.outputs.servers.value.event_reminder_db_server}}"
+        ansible_host: "{{ trfrm.outputs.servers.value.docker_server}}"
         ansible_ssh_private_key_file: ~/.ssh/id_rsa
         ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
 
@@ -31,25 +23,33 @@
   tasks:
     - name: Wait for db port 22
       wait_for:
-        host: "{{ trfrm.outputs.servers.value.event_reminder_server}}"
+        host: "{{ trfrm.outputs.servers.value.docker_server}}"
         port: 22
 
-    - name: Wait for tg port 22
-      wait_for:
-        host: "{{ trfrm.outputs.servers.value.event_reminder_db_server}}"
-        port: 22
-
-- hosts: event_reminder_db_server
-  name: Start mysql server
+- hosts: docker_server
+  name: Deploy application with docker
   become: yes
+  vars:
+    compose_yaml: "{{ compose_file }}"
+    daemon_json: "{{ daemon_conf }}"
   tasks:
     - name: Update apt package cache
       apt:
         update_cache: yes
 
-    - name: Install MySQL server
+    - name: Add key GPG Docker
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add The Docker Repository
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable
+        state: present
+
+    - name: Docker Installation
       apt:
-        name: mysql-server-8.0
+        name: docker-ce
         state: present
 
     - name: Install python3-pip
@@ -57,77 +57,31 @@
         name: python3-pip
         state: present
 
-    - name: Install PyMySQL using pip
-      pip:
-        name: pymysql
+    - name: Install docker compose pip
+      apt:
+        name: docker-compose
         state: present
-        executable: pip3
 
-    - name: Change server configuration
-      ansible.builtin.lineinfile:
-        path: /etc/mysql/mysql.conf.d/mysqld.cnf
-        regexp: "^bind-address"
-        line: "bind-address = 0.0.0.0"
+    - name: Copy directory project
+      copy:
+        src: "{{ daemon_json }}"
+        dest: /etc/docker
 
-    - name: Start MySQL service
-      service:
-        name: mysql
+    - name: Restart Docker service
+      ansible.builtin.service:
+        name: docker
         state: restarted
-        enabled: yes
 
-    - name: Install net-tools
-      apt:
-        name: net-tools
-        state: present
+    - name: Ensure the project directory exists
+      ansible.builtin.file:
+        path: /home/ubuntu/project  
+        state: directory
 
-    - name: Add user
-      mysql_user:
-        name: "user"
-        password: "asd123"
-        priv: "event_reminder.*:ALL"
-        host: "%"  # Разрешить подключение с любого хоста
-        state: present
-        login_unix_socket: /run/mysqld/mysqld.sock
-
-    - name: Copy sql import script
+    - name: Copy directory project
       copy:
-        src: "{{ sql_path  }}"
-        dest: /home/ubuntu
+        src: "{{ compose_yaml }}"
+        dest: /home/ubuntu/project
 
-    - name: Import database dump
-      mysql_db:
-        name: event_reminder
-        state: import
-        login_unix_socket: /var/run/mysqld/mysqld.sock
-        target: /home/ubuntu/db_create.sql
-
-
-- hosts: event_reminder_server
-  name: Deploy application
-  become: true
-
-  tasks:
-    - name: Update apt package cache
-      apt:
-        update_cache: yes
-
-    - name: Install JDK 18
-      apt:
-        name: openjdk-18-jdk
-        state: present
-
-    - name: Copy jar archive
-      copy:
-        src: "{{ jar_path }}"
-        dest: /home/ubuntu/
-
-    - name: Set application as service
-      copy:
-        src: "{{ unit_path }}"
-        dest: /etc/systemd/system/
-        
-    - name: Deploy Java application
-      systemd:
-        daemon_reload: true
-        state: restarted
-        name: event_reminder
+    - name: Start docker containers
+      docker_compose:
+        project_src: project/
