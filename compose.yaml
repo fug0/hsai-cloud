@@ -3,7 +3,7 @@ services:
 
   db:
     build:
-      context: database
+      context: db
       dockerfile: Dockerfile
     image: fug0/event_reminder:db
 
