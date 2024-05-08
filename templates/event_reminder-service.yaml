@@ -6,7 +6,7 @@ metadata:
     kompose.version: 1.32.0 (765fde254)
   labels:
     io.kompose.service: event-reminder
-  name: event_reminder
+  name: event-reminder
 spec:
   ports:
     - name: "8081"
