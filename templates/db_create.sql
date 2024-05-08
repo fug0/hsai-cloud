@@ -1,5 +1,4 @@
-DROP DATABASE IF EXISTS event_reminder;
-CREATE DATABASE event_reminder;
+CREATE DATABASE IF NOT EXISTS event_reminder;
 
 USE event_reminder;
 
