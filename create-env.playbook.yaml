@@ -35,7 +35,7 @@
         login_port: 30100
         login_user: root
         login_password: root
-        name: event-rem-bd
+        name: all
         target: ./db_create.sql
         state: import
 
