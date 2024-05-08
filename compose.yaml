@@ -4,12 +4,10 @@ services:
   db:
     image: fug0/event_reminder:db
     container_name: db
+    environment:
+      MYSQL_ROOT_PASSWORD: root
     ports:
       - "3306:3306"
-    environment:
-      MYSQL_DB: "mysql"
-      MYSQL_USER: "root"
-      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
 
   event_reminder:
     image: fug0/event_reminder:bot
