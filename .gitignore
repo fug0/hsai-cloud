@@ -32,8 +32,5 @@ build/
 ### VS Code ###
 .vscode/
 
-## SQL
-*.sql
-
 ## OTHER
 bot/
