@@ -31,6 +31,7 @@
         dest: ./db_create.sql
     - name: Execute backup script
       community.mysql.mysql_db:
+        login_unix_socket: /var/run/mysqld/mysqld.sock
         login_host: "192.168.199.216"
         login_port: 30100
         login_user: root
