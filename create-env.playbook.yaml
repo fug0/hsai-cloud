@@ -33,7 +33,6 @@
       community.mysql.mysql_db:
         login_host: "192.168.199.216"
         login_port: 31306
-        name: mysql
         login_user: root
         login_password: root
         target: ./db_create.sql
