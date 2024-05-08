@@ -32,10 +32,10 @@
     - name: Execute backup script
       community.mysql.mysql_db:
         login_host: "192.168.199.216"
-        login_port: 31307
+        login_port: 33060
         login_user: root
         login_password: root
-        name: event_reminder
+        name: event-rem-bd
         target: ./db_create.sql
         state: import
 

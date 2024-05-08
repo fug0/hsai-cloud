@@ -12,6 +12,6 @@ spec:
   ports:
     - port: 3306
       targetPort: 3306
-      nodePort: 31307
+      nodePort: 33060
   selector:
     io.kompose.service: db
