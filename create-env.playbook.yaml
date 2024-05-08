@@ -1,87 +1,55 @@
-- name: run local terraform
-  hosts: localhost
-  tasks:
-    - name: Run terraform
-      terraform:
-        project_path: "./tf"
-        force_init: yes
-        state: present
-      register: trfrm
-
-    - name: Add tg host
-      add_host:
-        name: docker_server
-        groups: nodes
-        ansible_host: "{{ trfrm.outputs.servers.value.docker_server}}"
-        ansible_ssh_private_key_file: ~/.ssh/id_rsa
-        ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
-
-- name: Wait timeout for creating instances
+- name: Check availability of k8s host
   hosts: localhost
   connection: local
-
   tasks:
-    - name: Wait for db port 22
+    - name: Wait for k8s port 22
       wait_for:
-        host: "{{ trfrm.outputs.servers.value.docker_server}}"
+        host: "192.168.199.216"
         port: 22
 
-- hosts: docker_server
-  name: Deploy application with docker
-  become: yes
-  vars:
-    compose_yaml: "{{ compose_file }}"
-    daemon_json: "{{ daemon_conf }}"
+- name: Deploy database
+  hosts: localhost
   tasks:
-    - name: Update apt package cache
-      apt:
-        update_cache: yes
+    - name: Apply database deployment
+      kubernetes.core.k8s:
+        apply: true
+        namespace: "belyaev-er"
+        template: ./templates/db-deployment.yaml
 
-    - name: Add key GPG Docker
-      apt_key:
-        url: https://download.docker.com/linux/ubuntu/gpg
-        state: present
+    - name: Apply database service
+      kubernetes.core.k8s:
+        apply: true
+        namespace: "belyaev-er"
+        template: ./templates/db-service.yaml
+  
+- name: Fill db from backup
+  hosts: localhost
+  tasks:
+    - name: Render backup script template
+      ansible.builtin.template:
+        src: ./templates/db_create.sql
+        dest: ./db_create.sql
+    - name: Execute backup script
+      community.mysql.mysql_db:
+        login_host: "192.168.199.216"
+        port: 3306
+        db: mysql
+        login_user: root
+        login_password:
+        target: ./db_create.sql
+        state: restore
 
-    - name: Add The Docker Repository
-      apt_repository:
-        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable
-        state: present
+- name: Deploy services
+  hosts: localhost
+  tasks:
+    - name: Apply event_reminder deployment
+      kubernetes.core.k8s:
+        apply: true
+        namespace: "belyaev-er"
+        template: ./templates/event-reminder-deployment.yaml
 
-    - name: Docker Installation
-      apt:
-        name: docker-ce
-        state: present
-
-    - name: Install python3-pip
-      apt:
-        name: python3-pip
-        state: present
-
-    - name: Install docker compose pip
-      apt:
-        name: docker-compose
-        state: present
-
-    - name: Copy directory project
-      copy:
-        src: "{{ daemon_json }}"
-        dest: /etc/docker
-
-    - name: Restart Docker service
-      ansible.builtin.service:
-        name: docker
-        state: restarted
-
-    - name: Ensure the project directory exists
-      ansible.builtin.file:
-        path: /home/ubuntu/project  
-        state: directory
-
-    - name: Copy directory project
-      copy:
-        src: "{{ compose_yaml }}"
-        dest: /home/ubuntu/project
-
-    - name: Start docker containers
-      docker_compose:
-        project_src: project/
+    - name: Apply event_reminder service
+      kubernetes.core.k8s:
+        apply: true
+        namespace: "belyaev-er"
+        template: ./templates/event_reminder-service.yaml

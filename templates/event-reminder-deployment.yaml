@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.32.0 (765fde254)
+  labels:
+    io.kompose.service: event-reminder
+  name: event-reminder
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: event-reminder
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert
+        kompose.version: 1.32.0 (765fde254)
+      labels:
+        io.kompose.network/kuber-default: "true"
+        io.kompose.service: event-reminder
+    spec:
+      containers:
+        - env:
+            - name: SPRING_DATASOURCE_PASSWORD
+              value: asd123
+            - name: SPRING_DATASOURCE_URL
+              value: r2dbc:mysql://db:3306/event_reminder
+            - name: SPRING_DATASOURCE_USERNAME
+              value: user
+          image: fug0/event_reminder:bot
+          name: bot
+          ports:
+            - containerPort: 8081
+              hostPort: 8081
+              protocol: TCP
+      restartPolicy: Always
